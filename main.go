@@ -45,13 +45,20 @@ func main() {
 		return
 	}
 
-	var percent float64
-	_, err = fmt.Sscanf(args[0], "%f", &percent)
+	var desired float64
+	_, err = fmt.Sscanf(args[0], "%f", &desired)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "Expected argument %q to be a number: %v\n", args[0], err)
 		os.Exit(1)
 	}
-	brightness.SetPercent(percent)
+
+	switch args[0][0] {
+	case '-', '+':
+		brightness.IncPercent(desired)
+	default:
+		brightness.SetPercent(desired)
+	}
+
 	if err := writeLight(*lightName, brightness); err != nil {
 		fmt.Fprintf(os.Stderr, "Failed to set brightness: %v\n", err)
 		os.Exit(1)
@@ -87,6 +94,12 @@ func (b Brightness) Percent() float64 {
 // p must be between 0 and 100.
 func (b *Brightness) SetPercent(p float64) {
 	b.Current = int((p / 100.) * float64(b.Max))
+}
+
+// IncPercent increases the Current brightness by p percentage points.
+func (b *Brightness) IncPercent(p float64) {
+	currentPercent := b.Percent()
+	b.SetPercent(clamp(currentPercent+p, 0, 100))
 }
 
 func readLight(name string) (Brightness, error) {
@@ -130,4 +143,14 @@ func readIntFile(path string) (int, error) {
 		return 0, err
 	}
 	return result, nil
+}
+
+func clamp(x, min, max float64) float64 {
+	if x < min {
+		return min
+	} else if x > max {
+		return max
+	} else {
+		return x
+	}
 }
